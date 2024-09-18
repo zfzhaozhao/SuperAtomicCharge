@@ -4,6 +4,29 @@ This source code was tested sucessfully on the basic environment with `conda=4.5
 
 通过图表示和迁移学习对原子部分电荷进行开箱即用的深度学习预测。 该源代码已在基本环境（conda=4.5.4 和 cuda=11.0）下测试成功
 
+目录索引：
+
+bin_data ：空文件
+
+envs ： 环境配置信息文件
+
+fig：摘要图片（png)
+
+inputs 输入文件sdf
+
+model_save ： .pth 是 PyTorch 框架中常用的文件格式，用于保存模型的状态字典（state dictionary）或者模型的完整状态
+.pth 文件的实际应用
+迁移学习: 可以将预训练的模型（例如 ImageNet 上训练的模型）加载到新的任务中进行迁移学习。
+模型恢复: 在训练过程中，如果遇到意外情况（如程序崩溃），可以通过加载保存的 .pth 文件恢复训练进度。
+模型共享: 共享训练好的模型，以便其他研究人员可以使用相同的模型进行实验或验证。
+
+outputs :空文件
+
+scripts ：脚本文件 整个模型脚本文件所在（重点）
+
+stats ： 空文件
+
+training_data ：训练数据，sdf文件
 ![Image text](https://github.com/zjujdj/SuperAtomicCharge/blob/main/fig/graph_Abstract.png)
 ## Conda Environment Reproduce
 Two methods were provided for reproducing the conda environment used in this study
