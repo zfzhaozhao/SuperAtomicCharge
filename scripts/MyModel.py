@@ -4,7 +4,7 @@ https:https://github.com/awslabs/dgl-lifesci
 """
 
 import torch.nn as nn
-from dgllife.model.gnn import GAT
+from dgllife.model.gnn import GAT  #图注意力网络
 import dgl.function as fn
 import torch
 import torch.nn as nn
@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from dgl.nn.pytorch import edge_softmax
 
 
-class AttentiveGRU1(nn.Module):
+class AttentiveGRU1(nn.Module):  #处理边的
     def __init__(self, node_feat_size, edge_feat_size, edge_hidden_size, dropout):
         super(AttentiveGRU1, self).__init__()
 
@@ -20,17 +20,29 @@ class AttentiveGRU1(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(edge_feat_size, edge_hidden_size)
         )
-        self.gru = nn.GRUCell(edge_hidden_size, node_feat_size)
+        self.gru = nn.GRUCell(edge_hidden_size, node_feat_size) #与完整的 nn.GRU 不同，nn.GRUCell 只实现了 GRU 的单个时间步计算，而不处理整个序列。它适合于需要对每个时间步单独进行处理的情况
 
-    def forward(self, g, edge_logits, edge_feats, node_feats):
+    def forward(self, g, edge_logits, edge_feats, node_feats): #这个 edge_logits 是什么？？？
         g = g.local_var()
+        #.local_var():这个方法用于创建一个图的局部副本。具体来说，它返回一个新的图对象，这个图对象的结构和数据与原始图 g 相同，但它是一个局部副本，通常用于在计算过程中进行临时操作。
+        #使用 local_var() 可以确保对图的修改不会影响到原始图 g，这对于图计算中的中间步骤特别有用。
         g.edata['e'] = edge_softmax(g, edge_logits) * self.edge_transform(edge_feats)
         g.update_all(fn.copy_edge('e', 'm'), fn.sum('m', 'c'))
+#update_all 是 DGL 图对象中的一个方法，用于在图的所有节点上执行消息传递操作。在这个方法中，通常会指定一个消息传递函数（message_func）和一个聚合函数（reduce_func）
+#fn.copy_edge('e', 'm'):这是一个消息传递函数（message_func），它定义了在图中传递消息的方式。fn.copy_edge 是一个 DGL 提供的内置函数，用于将边上的特征从源节点复制到消息中。
+#'e' 是边特征的键，表示要复制的边特征。
+#'m' 是消息的键，表示消息的内容将被存储到 'm' 中。
+#这个函数的作用是将每条边的特征 'e' 复制到消息 'm' 中，消息 'm' 将在接下来的步骤中被用于聚合。
+
+#fn.sum('m', 'c'):这是一个聚合函数（reduce_func），它定义了如何将消息聚合到目标节点上。fn.sum 是 DGL 提供的内置函数，用于对传递到目标节点的所有消息进行求和操作。
+#'m' 是消息的键，表示要进行聚合的消息。
+#'c' 是聚合结果的键，表示将聚合结果存储在 'c' 中。
+#这个函数的作用是将从所有邻居节点传递过来的消息 'm' 进行求和，并将结果存储在目标节点的特征 'c' 中。
         context = F.elu(g.ndata['c'])
         return F.relu(self.gru(context, node_feats))
+#得到的是每个边的更新特征，这些特征经过 GRU 单元处理并通过 ReLU 激活函数进行非线性变换。
 
-
-class AttentiveGRU2(nn.Module):
+class AttentiveGRU2(nn.Module): #处理节点的
     def __init__(self, node_feat_size, edge_hidden_size, dropout):
         super(AttentiveGRU2, self).__init__()
 
@@ -42,16 +54,21 @@ class AttentiveGRU2(nn.Module):
 
     def forward(self, g, edge_logits, node_feats):
         g = g.local_var()
-        g.edata['a'] = edge_softmax(g, edge_logits)
-        g.ndata['hv'] = self.project_node(node_feats)
+        g.edata['a'] = edge_softmax(g, edge_logits) #g.edata: 这是一个字典，用于存储图中边的数据特征。
+        g.ndata['hv'] = self.project_node(node_feats) #g.ndata: 这是一个字典，用于存储图中节点的数据特征。
 
         g.update_all(fn.src_mul_edge('hv', 'a', 'm'), fn.sum('m', 'c'))
+        #fn.src_mul_edge: 这是 DGL 中的一个消息函数，用于计算每条边的消息。在这个例子中，它执行源节点特征和边特征的乘法。
+#参数解释:'hv': 这是源节点的特征名称。'a': 这是边特征的名称。'm': 这是计算出的消息的存储键名。
+#对于每条边，fn.src_mul_edge('hv', 'a', 'm') 会将源节点的 'hv' 特征与边的 'a' 特征逐元素相乘，得到消息 'm'。
+#  fn.sum: 这是 DGL 中的一个聚合函数，用于对边发来的消息进行聚合。在这个例子中，它对消息进行求和。
+#参数解释:'m': 这是从消息函数中传递过来的消息名称。'c': 这是聚合结果的存储键名。
         context = F.elu(g.ndata['c'])
         return F.relu(self.gru(context, node_feats))
 
 
 class GetContext(nn.Module):
-    def __init__(self, node_feat_size, edge_feat_size, graph_feat_size, dropout):
+    def __init__(self, node_feat_size, edge_feat_size, graph_feat_size, dropout): 
         super(GetContext, self).__init__()
 
         self.project_node = nn.Sequential(
@@ -67,12 +84,14 @@ class GetContext(nn.Module):
             nn.Linear(2 * graph_feat_size, 1),
             nn.LeakyReLU()
         )
-        self.attentive_gru = AttentiveGRU1(graph_feat_size, graph_feat_size,
-                                           graph_feat_size, dropout)
+        self.attentive_gru = AttentiveGRU1(graph_feat_size, graph_feat_size, 
+                                           graph_feat_size, dropout)  ##node_feat_size, edge_feat_size, edge_hidden_size
 
     def apply_edges1(self, edges):
         return {'he1': torch.cat([edges.src['hv'], edges.data['he']], dim=1)}
-
+    #{'he1': torch.cat([edges.src['hv'], edges.data['he']], dim=1)} 是在 DGL（Deep Graph Library）中的消息传递函数中，
+    #定义了如何构造消息。它的作用是将源节点的特征和边特征结合起来，形成一个新的消息。
+    #dim=1 指定了沿着特征维度进行拼接。假设源节点特征的维度是 feature_dim，边特征的维度是 edge_feature_dim，拼接后的消息的维度将是 feature_dim + edge_feature_dim
     def apply_edges2(self, edges):
         return {'he2': torch.cat([edges.dst['hv_new'], edges.data['he1']], dim=1)}
 
@@ -83,6 +102,9 @@ class GetContext(nn.Module):
         g.edata['he'] = edge_feats
 
         g.apply_edges(self.apply_edges1)
+        #apply_edges 是 DGL 提供的一个方法，用于在图的边上应用某个操作。
+        #它接受一个函数作为参数，这个函数会被应用到每条边上。
+
         g.edata['he1'] = self.project_edge1(g.edata['he1'])
         g.apply_edges(self.apply_edges2)
         logits = self.project_edge2(g.edata['he2'])
