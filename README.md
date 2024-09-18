@@ -2,6 +2,8 @@
 Out-of-the-box Deep Learning Prediction of Atomic Partial Charges by Graph Representation and Transfer Learning.
 This source code was tested sucessfully on the basic environment with `conda=4.5.4` and `cuda=11.0`
 
+通过图表示和迁移学习对原子部分电荷进行开箱即用的深度学习预测。 该源代码已在基本环境（conda=4.5.4 和 cuda=11.0）下测试成功
+
 ![Image text](https://github.com/zjujdj/SuperAtomicCharge/blob/main/fig/graph_Abstract.png)
 ## Conda Environment Reproduce
 Two methods were provided for reproducing the conda environment used in this study
@@ -38,6 +40,9 @@ who want to train their own model using new datasets, we also show a model train
 corresponding training data was deposited in `./training_data`. The label of training data can be assessed using the
 script `./scripts/get_sdf_charge.py`. In addtion, we also provided a web server for directly predicting the atomic partial 
 charges in the [deepchargepredictor server](http://cadd.zju.edu.cn/deepchargepredictor/)
+
+用户可以直接使用我们在 ./model_save/ 目录中保存的训练好的模型来预测相应的原子部分电荷（DDEC4、DDEC78 和 RESP）。由于该方法基于三维分子结构，因此实际使用时应在包含三维坐标的优化分子上进行，例如通过 MMFF 力场、PM7 方法等优化的分子，输入文件应为包含多个具有三维坐标的分子的 sdf 文件。输入示例可以在 ./inputs/3cl-min.sdf 或 ./inputs/casp8-min.sdf 中找到。对于希望使用新数据集训练自己模型的用户，我们也提供了模型训练示例。相应的训练数据存放在 ./training_data 中。可以使用 ./scripts/get_sdf_charge.py 脚本访问训练数据的标签。此外，我们还提供了一个可以直接预测原子部分电荷的 deepchargepredictor 服务器。
+
 - **step 1: Clone the Repository**
 ```python
 git clone https://github.com/zjujdj/SuperAtomicCharge.git
