@@ -91,7 +91,14 @@ def D3_info_cal(nodes_ls, g):
 def get_pos_charges(mol2_file):
     mol_contents = open(mol2_file, 'r').readlines()
     target_contents = mol_contents[mol_contents.index('@<TRIPOS>ATOM\n') + 1:mol_contents.index('@<TRIPOS>BOND\n')]
+ #start_index: 是 @<TRIPOS>ATOM\n 出现位置的索引加 1，表示切片的起始位置在 @<TRIPOS>ATOM\n 标记的下一行。
+ #end_index: 是 @<TRIPOS>BOND\n 出现位置的索引，表示切片的结束位置。
+    #这段代码有效地提取了原子数据部分，并排除了 @<TRIPOS>ATOM 和 @<TRIPOS>BOND 标记本身。
     return np.array(list(map(lambda line: line.split(), target_contents)))[:, [2, 3, 4, -1]].astype(np.float)
+    
+    #使用 lambda 函数将 target_contents 中的每一行字符串按空格拆分成列表。
+    #转换为 NumPy 数组: 将拆分后的列表转换成 NumPy 数组。
+    #选择列: 从数组中选择第 2、3、4 和最后一列的数据。
 
 
 AtomFeaturizer = MyAtomFeaturizer()
@@ -102,7 +109,7 @@ def graph_from_mol(sdf_file, mol2_file, add_self_loop=False, add_3D=True):
     # small molecule
     # new_order = rdmolfiles.CanonicalRankAtoms(m)
     # mol = rdmolops.RenumberAtoms(m, new_order)
-    mol = Chem.MolFromMolFile(sdf_file, removeHs=False)
+    mol = Chem.MolFromMolFile(sdf_file, removeHs=False) #sdf文件？
     pos_charges = get_pos_charges(mol2_file)
     # construct graph
     g = dgl.DGLGraph()  # small molecule
@@ -133,7 +140,7 @@ def graph_from_mol(sdf_file, mol2_file, add_self_loop=False, add_3D=True):
     # 'h', features of atoms
     g.ndata['h'] = AtomFeaturizer(mol)['h']
     # 'charge'
-    g.ndata['charge'] = torch.tensor(pos_charges[:, [-1]], dtype=torch.float)
+    g.ndata['charge'] = torch.tensor(pos_charges[:, [-1]], dtype=torch.float)  #你的电荷是这样获取的？？？用mol2文件里的电荷
 
     # assign edge features
     # 'e', edge features
@@ -148,7 +155,7 @@ def graph_from_mol(sdf_file, mol2_file, add_self_loop=False, add_3D=True):
 
     if add_3D:
         g.edata['e'] = torch.cat([g.edata['e'], g_d * 0.1], dim=-1)
-        g.ndata['pos'] = torch.tensor(pos_charges[:, 0:-1], dtype=torch.float)
+        g.ndata['pos'] = torch.tensor(pos_charges[:, 0:-1], dtype=torch.float) #这里也不用自己计算了，用3D文件的信息
 
         # calculate the 3D info for g
         src_nodes, dst_nodes = g.find_edges(range(g.number_of_edges()))
@@ -245,20 +252,26 @@ def graph_from_mol_new(sdf_file, mol2_file, key, cache_path, path_marker):
     # acsf 计算
     AtomicNums = []
     for i in range(num_atoms):
-        AtomicNums.append(mol.GetAtomWithIdx(i).GetAtomicNum())
+        AtomicNums.append(mol.GetAtomWithIdx(i).GetAtomicNum())  #GetAtomicNum(): 是原子对象的方法，用于获取原子的原子序数（Atomic Number）
     Corrds = mol.GetConformer().GetPositions()
-    AtomicNums = torch.tensor(AtomicNums, dtype=torch.long)
+    #GetConformer(): 这个方法返回分子的构象（conformer）。构象表示分子的三维空间排列。一个分子可以有多个构象，但通常只获取第一个构象或者指定的构象
+    #Corrds: 是一个 NumPy 数组，形状为 (num_atoms, 3)，其中 num_atoms 是分子中的原子数量。每一行是一个原子的 (x, y, z) 坐标值。
+    AtomicNums = torch.tensor(AtomicNums, dtype=torch.long) 
     Corrds = torch.tensor(Corrds, dtype=torch.float64)
-    AtomicNums = torch.unsqueeze(AtomicNums, dim=0)
-    Corrds = torch.unsqueeze(Corrds, dim=0)
+    AtomicNums = torch.unsqueeze(AtomicNums, dim=0) #torch.unsqueeze(AtomicNums, dim=0) #在第 0 维（即最前面）增加一个新的维度，使其形状变为 (1, N)
+    Corrds = torch.unsqueeze(Corrds, dim=0) # 在张量的第 0 维上增加一个新的维度。对于 AtomicNums，这将使其变为 (1, N)，对于 Corrds，这将使其变为 (1, N, 3)。
     res = converter((AtomicNums, Corrds))
     pbsf_computer = AEVComputer(Rcr=6.0, Rca=6.0, EtaR=torch.tensor([4.00]), ShfR=torch.tensor([3.17]),
                                 EtaA=torch.tensor([3.5]), Zeta=torch.tensor([8.00]),
                                 ShfA=torch.tensor([0]), ShfZ=torch.tensor([3.14]), num_species=10)
+    #AEV计算机的基本任务就是从一个分子的原子坐标出发，计算出每个原子的代表其局部环境的AEV。
+    #AEV（Atomic Environment Vectors）是一种代表原子局部环境的特征向量。它们通常作为机器学习模型的输入，用于学习分子的局部结构信息。
     outputs = pbsf_computer((res.species, res.coordinates))
     if torch.any(torch.isnan(outputs.aevs[0].float())):
         print(mol)
         status = False
+        #这个函数接受一个布尔型张量，并检查其中是否有任何元素为True。
+#如果有任何一个或多个元素为True（即输入张量中有NaN值），则torch.any(...)返回True。
     ligand_atoms_aves = outputs.aevs[0].float()
     # acsf features
     g.ndata['acsf'] = ligand_atoms_aves
