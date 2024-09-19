@@ -2,3 +2,6 @@ GraphConstructor.py   图神经网络原始图数据的构建（但是关键提�
 GraphConstructorResp.py  基本类似上一个脚本 ，但这个可以处理sdf文件，在3d数据上的处理直接使用3d文件的信息
 get_sdf_charge.py  用rdkit的方法获取电荷
 MyModel.py    网络模型，里面还是有很多东西的，要在专研一下
+MyUtils.py   设置了随机种子，采样，早停，皮尔狲相关系数等函数
+
+ 
