@@ -80,6 +80,11 @@ class MyBondFeaturizer(BaseBondFeaturizer):
 #Chem.rdchem.BondStereo.STEREOE：E-立体化学。
 #encode_unknown=True 表示对未知的立体化学状态进行编码。
 
+
+
+#one_hot_encoder 是一个 partial 对象，它已经固定了 atom_type_one_hot 函数的两个参数，
+#所以当你调用 one_hot_encoder 时，只需要提供一个原子类型，而无需重复指定 allowable_set 和 encode_unknown
+#partial 函数来自于 Python 的 functools 模块，它允许你冻结一个函数的部分参数，生成一个新的可调用对象（partial object）。这个新的对象在调用时具有更少的参数需要传递。
 def D3_info(a, b, c):
     # 空间夹角
     ab = b - a  # 向量ab
