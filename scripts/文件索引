@@ -3,5 +3,10 @@ GraphConstructorResp.py  基本类似上一个脚本 ，但这个可以处理sdf
 get_sdf_charge.py  用rdkit的方法获取电荷
 MyModel.py    网络模型，里面还是有很多东西的，要在专研一下
 MyUtils.py   设置了随机种子，采样，早停，皮尔狲相关系数等函数
-
- 
+model_train.py   模型的训练， 获取图数据： GraphDatasetNew    它的神经网络最后用的是 ModifiedChargeModelV2  但是我目前没有看到对模型的保存，有状态参数的保存，但模型的好像没有
+ ChargeModel = ModifiedChargeModelV2(node_feat_size=36, edge_feat_size=21, num_layers=6,
+                                            graph_feat_size=200, dropout=0.1)
+  dataset = GraphDatasetNew(data_dirs=sdf_files, data_keys=data_keys,
+                              cache_bin_file=home_path + path_marker + 'bin_data' + path_marker + bin_data_file,
+                              tmp_cache_path=home_path + path_marker + 'tmpfiles',
+                              path_marker=path_marker, num_process=num_process)
