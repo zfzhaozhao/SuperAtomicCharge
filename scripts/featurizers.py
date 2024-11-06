@@ -85,18 +85,18 @@ def one_hot_encoding(x, allowable_set, encode_unknown=False):
     Parameters
     ----------
     x
-        Value to encode.
-    allowable_set : list
+        Value to encode.  x是需要转为独热编码的具体数值
+    allowable_set : list   容纳某个特征的所有数值，用于给独热编码确定每个值的位置，这也表名，不同的特征独热编码的长度不一样哦 
         The elements of the allowable_set should be of the
         same type as x.
     encode_unknown : bool
         If True, map inputs not in the allowable set to the
-        additional last element.
+        additional last element.用于控制输入不再allowable中是是否用设置为额外的最后一位元素
 
     Returns
     -------
     list
-        List of boolean values where at most one value is True.
+        List of boolean values where at most one value is True.  （返回的是布尔数的列表，只有其对应值的位置为True）
         The list is of length ``len(allowable_set)`` if ``encode_unknown=False``
         and ``len(allowable_set) + 1`` otherwise.
 
@@ -110,6 +110,7 @@ def one_hot_encoding(x, allowable_set, encode_unknown=False):
     >>> one_hot_encoding('S', ['C', 'O'], encode_unknown=True)
     [False, False, True]
     """
+  #这两个if  用于处理 encode_unkonwn 是True的情况，先给allowable_set 的最后一位添加None ,如果x 不属于里面的值，就让x=None 作为最后一位处理
     if encode_unknown and (allowable_set[-1] is not None):
         allowable_set.append(None)
 
@@ -117,9 +118,12 @@ def one_hot_encoding(x, allowable_set, encode_unknown=False):
         x = None
 
     return list(map(lambda s: x == s, allowable_set))  #返回的是bool索引的列表
-
+#lambda s: x == s: 这是一个匿名函数（即 lambda 函数），它接受一个参数 s，并返回一个布尔值（True 或 False）。
+#这个函数的作用是判断变量 x 是否等于 s。
+#map(...): map 函数会对可迭代对象中的每个元素应用指定的函数（在这里是 lambda 函数），并返回一个迭代器。
+#也就是说，它会遍历 allowable_set 中的每个元素 s，并将 lambda 函数应用于每一个 s。
 #################################################################
-# Atom featurization
+# Atom featurization  原子特征（是c H O S P 这种元素判断）
 #################################################################
 
 def atom_type_one_hot(atom, allowable_set=None, encode_unknown=False):
@@ -150,14 +154,16 @@ def atom_type_one_hot(atom, allowable_set=None, encode_unknown=False):
     atomic_number
     atomic_number_one_hot
     """
+  #allowable_set 是None的话，使用内置set (就是默认的）不然就自己给set
     if allowable_set is None:
         allowable_set = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca',
                          'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn',
                          'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au',
                          'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb']
     return one_hot_encoding(atom.GetSymbol(), allowable_set, encode_unknown)  #获取原子类型
-
-def atomic_number_one_hot(atom, allowable_set=None, encode_unknown=False):
+#atom.GetSymbol() 方法是用于获取特定原子的化学符号
+#独热编码是43维哦（False） Ture 44维
+def atomic_number_one_hot(atom, allowable_set=None, encode_unknown=False):  #用与编码元素的周期号，有了元素符号，还要这个周期号吗？？ 感觉有点多余
     """One hot encoding for the atomic number of an atom.
 
     Parameters
@@ -184,10 +190,10 @@ def atomic_number_one_hot(atom, allowable_set=None, encode_unknown=False):
     if allowable_set is None:
         allowable_set = list(range(1, 101))
     return one_hot_encoding(atom.GetAtomicNum(), allowable_set, encode_unknown) #atom.GetAtomicNum() 获取原子序号
-
+#false  100维 true 101 维 atom.GetAtomicNum() 方法用于获取特定原子的原子序数
 def atomic_number(atom):
-    """Get the atomic number for an atom.
-
+    """Get the atomic number for an atom.  
+#获取原子序数
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -210,7 +216,7 @@ def atom_degree_one_hot(atom, allowable_set=None, encode_unknown=False):
 
     Note that the result will be different depending on whether the Hs are
     explicitly modeled in the graph.
-
+#请注意，结果会因氢原子（Hs）是否在图中显式建模而有所不同。
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -236,7 +242,8 @@ def atom_degree_one_hot(atom, allowable_set=None, encode_unknown=False):
     if allowable_set is None:
         allowable_set = list(range(11))
     return one_hot_encoding(atom.GetDegree(), allowable_set, encode_unknown)
-
+#atom.GetDegree() GetDegree(): 这是一个方法，用于返回与该原子直接相连的其他原子的数量。这个数量被称为原子的度，它反映了原子在分子中的连接情况。
+#维度 False 11维 True 12维
 def atom_degree(atom):
     """Get the degree of an atom.
 
@@ -286,7 +293,7 @@ def atom_total_degree_one_hot(atom, allowable_set=None, encode_unknown=False):
     return one_hot_encoding(atom.GetTotalDegree(), allowable_set, encode_unknown)  
 #GetDegree()：只计算显性连接的原子（如碳、氧等）。
 #GetTotalDegree()：考虑了与原子相连的所有原子，包括隐式氢。
-
+#维度 False 6 True 7
 def atom_total_degree(atom):
     """The degree of an atom including Hs.
 
@@ -305,7 +312,9 @@ def atom_total_degree(atom):
 
 def atom_explicit_valence_one_hot(atom, allowable_set=None, encode_unknown=False):
     """One hot encoding for the explicit valence of an aotm.
-
+#显式价态 (Explicit Valence): 显式价态指的是在分子结构中直接表示的与其他原子的连接。
+#它考虑了原子周围的所有化学键，并且通常只计算那些在分子模型中明确呈现的键。
+#这个和度的差异是什么？？？？
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -352,7 +361,7 @@ def atom_explicit_valence(atom):
 
 def atom_implicit_valence_one_hot(atom, allowable_set=None, encode_unknown=False):
     """One hot encoding for the implicit valence of an atom.
-
+#隐式价态 (Implicit Valence): 有时，分子中可能存在隐式的氢原子或其他原子，这些原子没有在分子图中显示，但它们仍然影响原子的总价态
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -399,7 +408,8 @@ def atom_implicit_valence(atom):
 # pylint: disable=I1101
 def atom_hybridization_one_hot(atom, allowable_set=None, encode_unknown=False):
     """One hot encoding for the hybridization of an atom.
-
+#化（Hybridization）**是化学中的一个概念，用于描述原子中电子轨道的混合，以形成新的、等效的杂化轨道。
+#这一概念通常用于解释分子的几何结构和化学键的性质。
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -422,11 +432,11 @@ def atom_hybridization_one_hot(atom, allowable_set=None, encode_unknown=False):
     one_hot_encoding
     """
     if allowable_set is None:
-        allowable_set = [Chem.rdchem.HybridizationType.SP,           #SP：线性杂化               
-                         Chem.rdchem.HybridizationType.SP2,          #SP2：平面三角形杂化                 
-                         Chem.rdchem.HybridizationType.SP3,          #SP3：四面体杂化
-                         Chem.rdchem.HybridizationType.SP3D,         #SP3D：五面体杂化
-                         Chem.rdchem.HybridizationType.SP3D2]        #SP3D2：八面体杂化
+        allowable_set = [Chem.rdchem.HybridizationType.SP,           #SP：线性杂化           乙炔（C₂H₂          
+                         Chem.rdchem.HybridizationType.SP2,          #SP2：平面三角形杂化    乙烯（C₂H₄）               
+                         Chem.rdchem.HybridizationType.SP3,          #SP3：四面体杂化        甲烷（CH₄）
+                         Chem.rdchem.HybridizationType.SP3D,         #SP3D：五面体杂化       磷酸根离子（PO₄³⁻）
+                         Chem.rdchem.HybridizationType.SP3D2]        #SP3D2：八面体杂化      六氟化硫（SF₆）
     return one_hot_encoding(atom.GetHybridization(), allowable_set, encode_unknown)
    
 
@@ -531,7 +541,9 @@ def atom_partial_charge(atom):
 
     Occasionally, we can get nan or infinity Gasteiger charges, in which case we will set
     the result to be 0.
-
+#`AllChem.ComputeGasteigerCharges(mol)` 来计算分子的 Gasteiger 电荷。Gasteiger 电荷是一种用于描述分子中原子电荷分布的量，常用于药物设计和分子模拟。
+#以下是一些关键点： 1. **计算 Gasteiger 电荷**：在调用需要 Gasteiger 电荷的函数之前，必须先计算这些电荷。可以通过 RDKit 库中的 `AllChem.ComputeGasteigerCharges(mol)` 方法来完成。
+#2. **处理异常值**：在计算过程中，有时可能会得到 NaN（不是一个数字）或无穷大（infinity）的电荷值。如果出现这种情况，系统会将这些值设置为 0，以避免在后续计算中造成问题。
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -550,7 +562,8 @@ def atom_partial_charge(atom):
 
 def atom_num_radical_electrons_one_hot(atom, allowable_set=None, encode_unknown=False):
     """One hot encoding for the number of radical electrons of an atom.
-
+#Radical electrons” 通常指的是与自由基（radicals）相关的电子。在化学中，自由基是指具有一个或多个未配对电子的分子或原子
+#总之，radical electrons 是指自由基中的未配对电子，这些电子使得自由基具有高度的反应性和重要的化学性质。
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -574,7 +587,7 @@ def atom_num_radical_electrons_one_hot(atom, allowable_set=None, encode_unknown=
     if allowable_set is None:
         allowable_set = list(range(5))
     return one_hot_encoding(atom.GetNumRadicalElectrons(), allowable_set, encode_unknown)
-#用于获取原子的自由基电子数的方法
+#atom.GetNumRadicalElectrons()用于获取原子的自由基电子数的方法
 def atom_num_radical_electrons(atom):
     """Get the number of radical electrons for an atom.
 
@@ -596,6 +609,7 @@ def atom_num_radical_electrons(atom):
 
 def atom_is_aromatic_one_hot(atom, allowable_set=None, encode_unknown=False):
     """One hot encoding for whether the atom is aromatic.
+    #判断原子是否是芳香性原子
 
     Parameters
     ----------
@@ -642,7 +656,7 @@ def atom_is_aromatic(atom):
 
 def atom_is_in_ring_one_hot(atom, allowable_set=None, encode_unknown=False):
     """One hot encoding for whether the atom is in ring.
-
+#判断原子是个在环上
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -688,7 +702,7 @@ def atom_is_in_ring(atom):
 
 def atom_chiral_tag_one_hot(atom, allowable_set=None, encode_unknown=False):
     """One hot encoding for the chiral tag of an atom.
-
+#“Chiral tag” 指的是在化学中用于标识和分离手性分子的一种标记或标签。手性（chirality）是指分子或原子由于其结构的不同而存在两种不可重叠的立体异构体，通常被称为对映体（enantiomers）
     Parameters
     ----------
     atom : rdkit.Chem.rdchem.Atom
@@ -758,7 +772,7 @@ def atom_mass(atom, coef=0.01):
     atom : rdkit.Chem.rdchem.Atom
         RDKit atom instance.
     coef : float
-        The mass will be multiplied by ``coef``.
+        The mass will be multiplied by ``coef``.#类似矫正因子的作用
 
     Returns
     -------
@@ -782,10 +796,11 @@ def atom_is_chiral_center(atom):
     """
     return [atom.HasProp('_ChiralityPossible')]
     #HasProp 是 RDKit 中的方法，用于检查一个原子是否拥有特定的属性。
-    #在这里，'_ChiralityPossible' 是一个特定的属性名，表示原子是否可能是手性中心
+    #在这里，'_ChiralityPossible' 是一个特定的属性名，表示原子是否可能是手性中心  #所以输出是啥？？？
 
 class ConcatFeaturizer(object):
-    """Concatenate the evaluation results of multiple functions as a single feature.
+    """
+    Concatenate the evaluation results of multiple functions as a single feature.
     #将多个函数的评估结果连接为单一特征。
 
     Parameters
@@ -796,7 +811,8 @@ class ConcatFeaturizer(object):
         ``func(data_type) -> list of float or bool or int``. The resulting order of
         the features will follow that of the functions in the list.
   #用于从相同特定数据类型的对象（例如 ``rdkit.Chem.rdchem.Atom``）计算分子描述符的函数列表。
-  #每个函数的签名为 ``func(data_type) -> list of float or bool or int``。生成的特征顺序将遵循列表中函数的顺序。"""
+  #每个函数的签名为 ``func(data_type) -> list of float or bool or int``。生成的特征顺序将遵循列表中函数的顺序。
+  """
 
     Examples
     --------
@@ -808,7 +824,7 @@ class ConcatFeaturizer(object):
     >>> smi = 'CCO'
     >>> mol = Chem.MolFromSmiles(smi)
 
-    Concatenate multiple atom descriptors as a single node feature.#（就是将多个特征作为一个维度)
+  #  Concatenate multiple atom descriptors as a single node feature.#（就是将多个特征作为一个维度)
 
     >>> from dgllife.utils import atom_degree, atomic_number, BaseAtomFeaturizer
     >>> # Construct a featurizer for featurizing one atom a time
@@ -820,7 +836,7 @@ class ConcatFeaturizer(object):
                   [2., 6.],
                   [1., 8.]])}
 
-    Conctenate multiple bond descriptors as a single edge feature.
+ #   Conctenate multiple bond descriptors as a single edge feature.
 
     >>> from dgllife.utils import bond_type_one_hot, bond_is_in_ring, BaseBondFeaturizer
     >>> # Construct a featurizer for featurizing one bond a time
@@ -831,8 +847,9 @@ class ConcatFeaturizer(object):
     {'h': tensor([[1., 0., 0., 0., 0.],#（这里的列是特征，但是是one-hot的形式哦）
                   [1., 0., 0., 0., 0.],
                   [1., 0., 0., 0., 0.],
-                  [1., 0., 0., 0., 0.]])}
-    """
+                  [1., 0., 0., 0., 0.]])} """
+
+                  
     def __init__(self, func_list):
         self.func_list = func_list
 
