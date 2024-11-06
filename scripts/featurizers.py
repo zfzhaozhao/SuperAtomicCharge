@@ -5,22 +5,29 @@
 #
 # Node and edge featurization for molecular graphs.
 # pylint: disable= no-member, arguments-differ, invalid-name
-
-import itertools
-import os.path as osp
+#提取特征的代码
+import itertools        #itertools 是 Python 的一个内置模块，提供了用于操作可迭代对象的函数。这个模块包含了许多有用的函数
+                        #比如生成排列、组合、笛卡尔积等。它可以帮助你高效地处理迭代器和生成器。
+import os.path as osp   #os 是 Python 的一个标准库，提供了与操作系统交互的功能。os.path 是 os 模块的一个子模块，专门用于处理文件和目录的路径。
 
 from collections import defaultdict
+                                   #collections 是 Python 的一个内置模块，提供了许多有用的集合类（如 Counter, deque, OrderedDict 等）。
+                                   #defaultdict 是 collections 模块中的一个类，扩展了内置的字典（dict）类型。其主要特点是：
+                                   #当你访问一个不存在的键时，defaultdict 会自动为该键创建一个默认值，而不是抛出 KeyError。
+                                   #你可以在创建 defaultdict 时指定一个工厂函数，这个函数会返回默认值。例如，如果使用 defaultdict(int)，那么访问不存在的键时会返回 0，因为 int() 的返回值是 0。
 from functools import partial
-
+                                 #functools 是 Python 的一个内置模块，提供了一些高阶函数，用于操作或返回其他函数。
+                                 #partial 是 functools 模块中的一个函数，它允许你固定函数的一些参数，从而生成一个新的函数。这个新函数可以在调用时忽略那些被固定的参数，简化函数调用。
 import numpy as np
 import torch
-import dgl.backend as F
+import dgl.backend as F  #backend 是 DGL 中的一个模块，通常用于提供与底层张量操作相关的功能，例如创建张量、进行数学运算等。
+                         #它的设计目的是为用户提供一个与后端深度学习框架（如 PyTorch 或 TensorFlow）无关的接口。
 
 try:
-    from rdkit import Chem, RDConfig
-    from rdkit.Chem import AllChem, ChemicalFeatures
-except ImportError:
-    pass
+    from rdkit import Chem, RDConfig                    #Chem 是 rdkit 中的一个模块，包含处理分子的各种功能，比如分子的读取、写入、转换等。
+    from rdkit.Chem import AllChem, ChemicalFeatures     #RDConfig 是 rdkit 提供的一个模块，用于获取 RDKit 安装路径等配置信息
+except ImportError:                                        #AllChem 包含了额外的化学计算功能，比如构建分子、生成三维结构等
+    pass                                                  #ChemicalFeatures 用于从分子中提取化学特征。
 
 #_all__ 是 Python 中一个特殊的变量，主要用于模块的导入控制。当你在一个模块中定义 __all__ 变量时，它通常是一个包含字符串的列表，列出了该模块希望公开的属性和方法。
 
