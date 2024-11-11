@@ -868,12 +868,22 @@ class ConcatFeaturizer(object):
         """
         return list(itertools.chain.from_iterable(
             [func(x) for func in self.func_list]))
+            
+#[func(x) for func in self.func_list]：这是一个列表推导式。self.func_list 是一个包含函数的列表，每个 func 都是可以调用的函数。
+#在这个列表推导式中，func(x) 表示对 x 应用每一个函数 func，生成一个包含这些函数结果的列表。
+#比如，如果 self.func_list 有两个函数 func1 和 func2，那么 func(x) 会分别调用 func1(x) 和 func2(x)，生成一个列表 [[func1(x)], [func2(x)]]
+#嵌套列表的结果：每个 func(x) 都会生成一个输出（或一个列表，如果 func(x) 返回的就是列表），所以 [func(x) for func in self.func_list] 的结果可能是一个嵌套列表。例如：[[result1], [result2], ...]。
+#itertools.chain.from_iterable(...)：itertools.chain.from_iterable 将嵌套列表“展平”为单个列表。
+#它的作用是从输入的嵌套列表中提取出每个元素，按顺序组合到一个新的平坦列表中。这样就可以得到一个包含所有函数返回值的单层列表。
+
 
 class BaseAtomFeaturizer(object):
-    """An abstract class for atom featurizers. # 用于特征提取的类                         
+    """An abstract class for atom featurizers. # 用于特征提取的类          #相当于在一个分子层面获取所有原子的特征                  
 
     Loop over all atoms in a molecule and featurize them with the ``featurizer_funcs``.
+#遍历分子中的所有原子，并使用 featurizer_funcs 对它们进行特征化。
 
+#我们假设生成的 DGLGraph 不包含任何虚拟节点，并且图中的节点 i 与分子中的原子 i 完全对应
     **We assume the resulting DGLGraph will not contain any virtual nodes and a node i in the
     graph corresponds to exactly atom i in the molecule.**
 
@@ -901,7 +911,7 @@ class BaseAtomFeaturizer(object):
                        [0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
                        [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0.]])}
     >>> # Get feature size for atom mass
-    >>> print(atom_featurizer.feat_size('mass'))
+    >>> print(atom_featurizer.feat_size('mass'))  #用于查询mass特征维度
     1
     >>> # Get feature size for atom degree
     >>> print(atom_featurizer.feat_size('degree'))
