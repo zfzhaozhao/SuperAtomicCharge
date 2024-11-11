@@ -931,13 +931,14 @@ class BaseAtomFeaturizer(object):
     def __init__(self, featurizer_funcs, feat_sizes=None):
         self.featurizer_funcs = featurizer_funcs
         if feat_sizes is None:
-            feat_sizes = dict()
+            feat_sizes = dict()  #如果 feat_sizes 为空，则将 feat_sizes 设置为一个空字典
         self._feat_sizes = feat_sizes
 
     def feat_size(self, feat_name=None):
         """Get the feature size for ``feat_name``.
 
         When there is only one feature, users do not need to provide ``feat_name``.
+        #只有一个特征的时候是不需要额外提供特征名字
 
         Parameters
         ----------
@@ -949,21 +950,7 @@ class BaseAtomFeaturizer(object):
         int
             Feature size for the feature with name ``feat_name``. Default to None.
         """
-        if feat_name is None:
-            assert len(self.featurizer_funcs) == 1, \
-                'feat_name should be provided if there are more than one features'
-            feat_name = list(self.featurizer_funcs.keys())[0]
-
-        if feat_name not in self.featurizer_funcs:
-            return ValueError('Expect feat_name to be in {}, got {}'.format(
-                list(self.featurizer_funcs.keys()), feat_name))
-
-        if feat_name not in self._feat_sizes:
-            atom = Chem.MolFromSmiles('C').GetAtomWithIdx(0)
-            self._feat_sizes[feat_name] = len(self.featurizer_funcs[feat_name](atom))
-#Chem.MolFromSmiles('C') 创建了一个表示单个碳原子的分子对象。
-#.GetAtomWithIdx(0) 获取该分子中索引为 0 的原子（即这个单一的碳原子）。
-        return self._feat_sizes[feat_name]
+ 
 
     def __call__(self, mol):
     #，__call__ 方法通常用于特征提取器或处理器类。当你调用这个实例并传入一个分子对象时
@@ -984,18 +971,26 @@ class BaseAtomFeaturizer(object):
         """
         num_atoms = mol.GetNumAtoms()  #总原子数
         atom_features = defaultdict(list)
-
+#defaultdict 是 Python collections 模块中的一种字典类型，允许为字典中的每个键指定一个默认值。
+#defaultdict(list) 的意思是，每当向字典中访问一个不存在的键时，它会自动将该键初始化为一个空列表 []。
+#在这个例子中，atom_features 被定义为一个 defaultdict，每次调用一个不存在的键时会得到一个空列表。这使得我们可以直接将元素添加到字典的键中，而不必先检查该键是否存在
         # Compute features for each atom
         for i in range(num_atoms):
-            atom = mol.GetAtomWithIdx(i)
+            atom = mol.GetAtomWithIdx(i)  
+            #atom = mol.GetAtomWithIdx(i) 这行代码的作用是从分子对象 mol 中获取索引为 i 的原子，并将该原子存储在变量 atom 中
             for feat_name, feat_func in self.featurizer_funcs.items():
-                atom_features[feat_name].append(feat_func(atom))
+                atom_features[feat_name].append(feat_func(atom))  #最终添加到列表中的确是每次调用 feat_func(atom) 后得到的特征计算结果
 
-        # Stack the features and convert them to float arrays
+        # Stack the features and convert them to float arrays 堆叠特征，扭转为浮点数组
         processed_features = dict()
         for feat_name, feat_list in atom_features.items():
-            feat = np.stack(feat_list)   #（将每个feat_name 下的每个原子的特征按行堆起来）
+            feat = np.stack(feat_list)   #（将feat_name下的特征垂直堆叠
+            #垂直堆叠意味着：如果 feat_list 中的每个数组形状为 (n,)（即一维数组），np.stack() 会将它们作为多行排列，形成一个新的二维数组。这个新的二维数组的每一行对应 feat_list 中的一个数组。
             processed_features[feat_name] = F.zerocopy_from_numpy(feat.astype(np.float32))  
+            
+#zerocopy_from_numpy() 的作用是将一个 NumPy 数组直接转换为一个 PyTorch 张量，而不需要复制数据。这个方法非常高效，因为它直接共享 NumPy 数组的内存（零拷贝），而不是重新分配内存。
+#所以，feat.astype(np.float32) 先将 NumPy 数组的类型转换为 float32，然后 zerocopy_from_numpy 将其转换为 PyTorch 张量。
+#将布尔数组转换为浮点数数组非常简单，可以使用 astype 方法，指定目标数据类型为 np.float32 或 np.float64。布尔值 True 会转换为 1.0，而 False 会转换为 0.0。
 #F.zerocopy_from_numpy(...)：
 #这是 DGL 中的一个函数，通常位于 dgl.backend 模块。这个函数的作用是创建一个与 NumPy 数组共享内存的 DGL 张量，而不是复制数据。
 #这意味着它不会占用额外的内存，提高了效率，特别是在处理大型数据集时。
@@ -1003,7 +998,18 @@ class BaseAtomFeaturizer(object):
 
 class CanonicalAtomFeaturizer(BaseAtomFeaturizer):
     """A default featurizer for atoms.
-
+#class CanonicalAtomFeaturizer(BaseAtomFeaturizer): 这行代码定义了一个名为 CanonicalAtomFeaturizer 的类，并且它继承自 BaseAtomFeaturizer 类
+#1. 类的定义：
+#class 关键字用于定义一个新的类。
+#CanonicalAtomFeaturizer 是新类的名字，通常类名采用大驼峰命名法（首字母大写的单词组合）。
+#2. 继承 (BaseAtomFeaturizer)：
+#BaseAtomFeaturizer 是父类（基类），CanonicalAtomFeaturizer 继承了 BaseAtomFeaturizer 类。
+#继承意味着 CanonicalAtomFeaturizer 将会拥有 BaseAtomFeaturizer 类中的所有属性和方法，也可以对这些属性和方法进行修改（重写）或者扩展。
+#通过继承，CanonicalAtomFeaturizer 可以重用 BaseAtomFeaturizer 类中已有的代码，同时添加或修改功能。
+#3. 子类与父类的关系：
+#在面向对象编程中，**父类（基类）**是一个更一般的类，提供了基本的功能。
+#子类是继承自父类的类，通常会扩展或修改父类的功能。
+#例如，如果 BaseAtomFeaturizer 提供了计算分子中原子的基础特征，CanonicalAtomFeaturizer 可能会对这些特征进行更具体的处理，或增加一些额外的特征。
     The atom features include:
 
     * **One hot encoding of the atom type**. The supported atom types include
@@ -1068,7 +1074,19 @@ class CanonicalAtomFeaturizer(BaseAtomFeaturizer):
     AttentiveFPAtomFeaturizer
     PAGTNAtomFeaturizer
     """
-    def __init__(self, atom_data_field='h'):
+    #atom_data_field 类似定义的原子特征的一个名字。默认是h
+    #1. def __init__(self, atom_data_field='h'):
+#__init__ 是 Python 类的构造函数，它在创建类的实例时自动调用。
+#self 代表类的实例本身。
+#atom_data_field='h' 是构造函数的一个参数，默认为 'h'。这个参数允许在创建 CanonicalAtomFeaturizer 实例时指定 atom_data_field 的值。如果调用时没有传递值，则默认值为 'h'。
+
+#super(CanonicalAtomFeaturizer, self).__init__(...)
+#super(CanonicalAtomFeaturizer, self) 用来调用父类 BaseAtomFeaturizer 的构造函数（假设 CanonicalAtomFeaturizer 继承自 BaseAtomFeaturizer）。
+#super() 允许子类调用父类的方法。在这里，它调用父类的构造函数并传递一些初始化参数。
+#__init__(...) 是父类的构造函数，其中的参数是为了初始化父类时设置的内容
+#这段代码的目的是初始化 CanonicalAtomFeaturizer 类，并通过调用父类 BaseAtomFeaturizer 的构造函数，传递一个特征函数字典 featurizer_funcs，这个字典的键是 atom_data_field（默认值 'h'），值是一个 ConcatFeaturizer 实例，后者包含多个原子特征计算函数。
+#ConcatFeaturizer 会将多个特征计算函数的结果拼接成一个综合的特征向量，用于表示原子的多种特性。
+    def __init__(self, atom_data_field='h'):  
         super(CanonicalAtomFeaturizer, self).__init__(
             featurizer_funcs={atom_data_field: ConcatFeaturizer(
                 [atom_type_one_hot,
@@ -1085,6 +1103,9 @@ class WeaveAtomFeaturizer(object):
     """Atom featurizer in Weave.
 
     The atom featurization performed in `Molecular Graph Convolutions: Moving Beyond Fingerprints
+    #在“分子图卷积：超越指纹”中进行的原子特征化
+
+
     <https://arxiv.org/abs/1603.00856>`__, which considers:
 
     * atom types
@@ -1175,9 +1196,37 @@ class WeaveAtomFeaturizer(object):
             atom_formal_charge, atom_partial_charge, atom_is_aromatic,
             partial(atom_hybridization_one_hot, allowable_set=hybridization_types)
         ])
+#每个函数用于计算特定的原子特征：
+
+#partial(atom_type_one_hot, allowable_set=atom_types, encode_unknown=True)：
+
+#atom_type_one_hot 是一个函数，用于计算原子的类型（如碳、氢、氧等）并进行 one-hot 编码。
+#这里使用 partial 将 allowable_set=atom_types 和 encode_unknown=True 参数固定，这样每次调用这个函数时，这两个参数都是固定的值。
+#allowable_set=atom_types 表示允许的原子类型集合，encode_unknown=True 表示未知的类型将被编码为特殊值。
+#partial(atom_chiral_tag_one_hot, allowable_set=chiral_types)：
+#atom_chiral_tag_one_hot 计算原子的手性标签并进行 one-hot 编码。
+#使用 partial 固定参数 allowable_set=chiral_types，即手性标签的允许值集合。
+
+
 
         fdef_name = osp.join(RDConfig.RDDataDir, "BaseFeatures.fdef")
         self._mol_featurizer = ChemicalFeatures.BuildFeatureFactory(fdef_name)
+
+#fdef_name = osp.join(RDConfig.RDDataDir, "BaseFeatures.fdef") 这一行代码的主要作用是构建一个文件路径，用于找到 BaseFeatures.fdef 文件。
+#RDConfig 是 RDKit 中的一个配置模块，包含了 RDKit 的默认配置和路径信息。
+#RDConfig.RDDataDir 是 RDKit 中的一个变量，指向 RDKit 安装目录中的数据文件夹路径。在这个数据目录下，RDKit 存放了一些与化学特征、分子分析等相关的文件。
+#BaseFeatures.fdef:
+
+#BaseFeatures.fdef 是一个文件名，它是 RDKit 自带的一个特征定义文件（Feature Definition File）。这个文件包含了一些常用化学特征的定义，例如氢键供体、受体等，用于分子特征提取。
+#加载这个文件后，RDKit 可以识别分子中的特定化学特征。
+#osp.join(RDConfig.RDDataDir, "BaseFeatures.fdef"):
+#osp 是 os.path 的简称，它是 Python 标准库 os 中的路径处理模块。
+#osp.join() 是 os.path 中的一个函数，作用是将两个路径拼接成一个完整的路径。在这里，它将 RDConfig.RDDataDir 和 "BaseFeatures.fdef" 拼接在一起，生成 BaseFeatures.fdef 文件的完整路径。
+#self._mol_featurizer 是一个实例变量，用于保存生成的特征工厂对象
+#ChemicalFeatures 是 RDKit 的一个模块，专门用于化学特征提取。
+#BuildFeatureFactory 是 ChemicalFeatures 中的一个函数，用于创建一个化学特征工厂（feature factory）。这个工厂的作用是识别和提取分子中的特定化学特征。
+#这里的 fdef_name 是一个字符串，包含了 BaseFeatures.fdef 文件的路径。
+#BaseFeatures.fdef 文件定义了许多常见的化学特征，例如氢键供体（H-bond donor）、氢键受体（H-bond acceptor）等。这些特征在药物发现和分子分析中很有用。
 
     def feat_size(self):
         """Get the feature size.
@@ -1193,7 +1242,11 @@ class WeaveAtomFeaturizer(object):
         return feats.shape[-1]
 
 #self(mol)：这部分调用了当前对象的 __call__ 方法（如果该对象实现了 __call__）。它将 mol 作为参数传入，通常用于提取该分子的特征。返回的结果可能是一个字典或列表，包含了不同的特征。
-#[self._atom_data_field]：这部分从提取的特征中获取与 _atom_data_field 相关的特征数据。_atom_data_field 通常是一个字符串，表示特定的特征键（例如，原子的属性或特征），用于索引提取的特征。
+#feats = self(mol)[self._atom_data_field]
+#调用 self 这个对象（可能是一个模型或特征提取器），传入创建的分子 mol。然后，从返回的结果中提取出 _atom_data_field 字段的内容（这个字段应该是该类的一个成员变量，表示原子级别的数据）。
+
+return feats.shape[-1]
+返回提取的特征矩阵 feats 的最后一个维度的大小，即特征的数量或长度（假设 feats 是一个多维数组或矩阵）。
     def get_donor_acceptor_info(self, mol_feats):
         """Bookkeep whether an atom is donor/acceptor for hydrogen bonds.
 
@@ -1211,12 +1264,14 @@ class WeaveAtomFeaturizer(object):
             Mapping atom ids to binary values indicating whether atoms
             are acceptors for hydrogen bonds
         """
+        #is_donor = defaultdict(bool) 这行代码创建了一个默认值为 False 的字典，is_donor 用于标记原子是否是氢键供体。如果访问的原子没有被标记为氢键供体，它会返回 False，表示该原子不是氢键供体。
         is_donor = defaultdict(bool)
         is_acceptor = defaultdict(bool)
         # Get hydrogen bond donor/acceptor information
         for feats in mol_feats:
             if feats.GetFamily() == 'Donor':
                 nodes = feats.GetAtomIds()
+                #获取当前特征所涉及的原子 ID（原子序号）。如果是氢键供体，这个步骤会返回供体原子的编号。
                 for u in nodes:
                     is_donor[u] = True
             elif feats.GetFamily() == 'Acceptor':
@@ -1244,19 +1299,26 @@ class WeaveAtomFeaturizer(object):
         atom_features = []
 
         AllChem.ComputeGasteigerCharges(mol)
-        num_atoms = mol.GetNumAtoms()
+        num_atoms = mol.GetNumAtoms() #总原子数
 
         # Get information for donor and acceptor
         mol_feats = self._mol_featurizer.GetFeaturesForMol(mol)
+        
+        #GetFeaturesForMol 是特征提取器对象中的一个方法。它接受一个分子对象 mol 作为输入，并返回该分子的特征集合（通常包含原子或分子的各种特性，如氢键供体、受体、环结构等）。
+   #self._mol_featurizer 是类中的一个属性，通常用于对分子进行特征提取。它可能是一个已经初始化的分子特征提取器对象，比如一个封装了特征提取功能的类实例。 
+   
         is_donor, is_acceptor = self.get_donor_acceptor_info(mol_feats)
+        
 #调用分子特征提取器（self._mol_featurizer）的方法 GetFeaturesForMol(mol)，用于从给定的分子对象 mol 中提取特征。提取的特征将存储在 mol_feats 变量中
 #这行代码调用当前类的 get_donor_acceptor_info 方法，并将 mol_feats 作为参数传入。这个方法的作用是分析分子的特征，识别出哪些原子是氢键供体（donor）和哪些是氢键受体（acceptor）。
+
         # Get a symmetrized smallest set of smallest rings
         # Following the practice from Chainer Chemistry (https://github.com/chainer/
         # chainer-chemistry/blob/da2507b38f903a8ee333e487d422ba6dcec49b05/chainer_chemistry/
         # dataset/preprocessors/weavenet_preprocessor.py)
+        
         sssr = Chem.GetSymmSSSR(mol)
-#GetSymmSSSR(mol) 函数会返回一个列表，其中包含分子中所有的环结构，并确保这些环是对称的。它找到的环是分子中所有环的最小集合。
+#GetSymmSSSR 是 RDKit 中的一个函数，专门用于获取分子的对称最小环集（Symmetrized SSSR）。它接受一个分子对象 mol 作为输入，并返回分子中的所有最小环。该集合包含了分子结构中所有独立的、最小的闭合环。
         for i in range(num_atoms):
             atom = mol.GetAtomWithIdx(i)
             # Features that can be computed directly from RDKit atom instances, which is a list
@@ -1275,6 +1337,8 @@ class WeaveAtomFeaturizer(object):
                     count[ring_size - 3] += 1
             feats.extend(count)
             atom_features.append(feats)
+  #append 添加的是整个对象（不论是单个元素还是一个列表）。 [1, 2, 3, [4, 5]]
+#extend 会将另一个列表中的每个元素添加到当前列表中。输出：[1, 2, 3, 4, 5]
         atom_features = np.stack(atom_features)
 
         return {self._atom_data_field: F.zerocopy_from_numpy(atom_features.astype(np.float32))}
@@ -1284,7 +1348,7 @@ class WeaveAtomFeaturizer(object):
 
 class PretrainAtomFeaturizer(object):
     """AtomFeaturizer in Strategies for Pre-training Graph Neural Networks.
-
+ #图神经网络预训练策略中的atomfeature。
     The atom featurization performed in `Strategies for Pre-training Graph Neural Networks
     <https://arxiv.org/abs/1905.12265>`__, which considers:
 
@@ -1330,10 +1394,10 @@ class PretrainAtomFeaturizer(object):
 
         if chiral_types is None:
             chiral_types = [
-                Chem.rdchem.ChiralType.CHI_UNSPECIFIED,
-                Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW,
-                Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CCW,
-                Chem.rdchem.ChiralType.CHI_OTHER
+                Chem.rdchem.ChiralType.CHI_UNSPECIFIED,#手性未指定。这种情况下，分子的手性未被明确定义，通常用于那些不需要考虑手性信息的原子。
+                Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW,  #顺时针四面体手性（Clockwise Tetrahedral）。对于一个四面体结构的手性中心，这表示原子在三维空间中的排列方向是顺时针的。
+                Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CCW, #逆时针四面体手性（Counter-Clockwise Tetrahedral）。对于四面体结构的手性中心，这表示原子在三维空间中的排列方向是逆时针的。
+                Chem.rdchem.ChiralType.CHI_OTHER #其他手性。这种手性类型用于描述特殊的手性情况，可能不符合上述三种手性类型。
             ]
         self._chiral_types = chiral_types
 
@@ -1359,6 +1423,11 @@ class PretrainAtomFeaturizer(object):
                 self._atomic_number_types.index(atom.GetAtomicNum()),
                 self._chiral_types.index(atom.GetChiralTag())
             ])
+            #atom.GetAtomicNum() 返回原子的原子序数（例如，碳是 6，氧是 8）。这是一个独特的标识符，用于识别原子的种类。
+          #  self._atomic_number_types 是一个包含原子序数的列表或集合（例如 [1, 6, 7, 8, ...]）。
+#self._atomic_number_types.index(atom.GetAtomicNum()) 返回当前原子的原子序数在 self._atomic_number_types 列表中的位置（索引），将原子序数转化为一个整数索引。
+        #atom.GetChiralTag() 返回原子的手性类型，是 Chem.rdchem.ChiralType 的一个值，比如 CHI_UNSPECIFIED、CHI_TETRAHEDRAL_CW 等
+        
         atom_features = np.stack(atom_features)
         atom_features = F.zerocopy_from_numpy(atom_features.astype(np.int64))
 
@@ -1439,12 +1508,12 @@ class AttentiveFPAtomFeaturizer(BaseAtomFeaturizer):
                     'Cl', 'As', 'Se', 'Br', 'Te', 'I', 'At'], encode_unknown=True),
                  partial(atom_degree_one_hot, allowable_set=list(range(6))),
                  atom_formal_charge,
-                 atom_num_radical_electrons,
+                 atom_num_radical_electrons,  #原子的自由基
                  partial(atom_hybridization_one_hot, encode_unknown=True),
                  atom_is_aromatic,
                  atom_total_num_H_one_hot,
-                 atom_is_chiral_center,
-                 atom_chirality_type_one_hot]
+                 atom_is_chiral_center,  #atom_is_chiral_center 通常是一个布尔变量，用于表示一个原子是否是手性中心（chiral center）。
+                 atom_chirality_type_one_hot]  #原子的手性类型
             )})
 
 class PAGTNAtomFeaturizer(BaseAtomFeaturizer):
@@ -1519,7 +1588,7 @@ class PAGTNAtomFeaturizer(BaseAtomFeaturizer):
                                                            allowable_set=list(range(6)),
                                                            encode_unknown=False),
                                                    atom_is_aromatic])})
-
+#键，边的特征 
 def bond_type_one_hot(bond, allowable_set=None, encode_unknown=False):
     """One hot encoding for the type of a bond.
 
@@ -1548,7 +1617,8 @@ def bond_type_one_hot(bond, allowable_set=None, encode_unknown=False):
         allowable_set = [Chem.rdchem.BondType.SINGLE,
                          Chem.rdchem.BondType.DOUBLE,
                          Chem.rdchem.BondType.TRIPLE,
-                         Chem.rdchem.BondType.AROMATIC]
+                         Chem.rdchem.BondType.AROMATIC] # 芳香键
+                    
     return one_hot_encoding(bond.GetBondType(), allowable_set, encode_unknown)
 
 def bond_is_conjugated_one_hot(bond, allowable_set=None, encode_unknown=False):
@@ -1598,7 +1668,7 @@ def bond_is_conjugated(bond):
     return [bond.GetIsConjugated()]
 
 def bond_is_in_ring_one_hot(bond, allowable_set=None, encode_unknown=False):
-    """One hot encoding for whether the bond is in a ring of any size.
+    """One hot encoding for whether the bond is in a ring of any size.  是否是环里的键
 
     Parameters
     ----------
@@ -1705,6 +1775,7 @@ def bond_direction_one_hot(bond, allowable_set=None, encode_unknown=False):
                          Chem.rdchem.BondDir.ENDUPRIGHT,        #键的方向向上右侧
                          Chem.rdchem.BondDir.ENDDOWNRIGHT]      #键的方向向下右侧
     return one_hot_encoding(bond.GetBondDir(), allowable_set, encode_unknown)
+#不是很明白这种间的空间取向？？？？
 
 class BaseBondFeaturizer(object):
     """An abstract class for bond featurizers.
@@ -1712,7 +1783,7 @@ class BaseBondFeaturizer(object):
     We assume the constructed ``DGLGraph`` is a bi-directed graph where the **i** th bond in the
     molecule, i.e. ``mol.GetBondWithIdx(i)``, corresponds to the **(2i)**-th and **(2i+1)**-th edges
     in the DGLGraph.
-
+#构建的是双向图
     **We assume the resulting DGLGraph will be created with :func:`smiles_to_bigraph` without
     self loops.**
 
@@ -1753,7 +1824,7 @@ class BaseBondFeaturizer(object):
 
     >>> bond_featurizer = BaseBondFeaturizer(
     ...                       {'type': bond_type_one_hot, 'ring': bond_is_in_ring},
-    ...                       self_loop=True)
+    ...                       self_loop=True) #添加自环
     >>> bond_featurizer(mol)
     {'type': tensor([[1., 0., 0., 0., 0.],
                      [1., 0., 0., 0., 0.],
@@ -1842,7 +1913,7 @@ class BaseBondFeaturizer(object):
             bond = mol.GetBondWithIdx(i)
             for feat_name, feat_func in self.featurizer_funcs.items():
                 feat = feat_func(bond)
-                bond_features[feat_name].extend([feat, feat.copy()])
+                bond_features[feat_name].extend([feat, feat.copy()])   #两个特征是双向图的意思吗?
 #feat：一个新的特征，可能是某种数据结构或值。
 #feat.copy()：feat 的一个拷贝。使用 copy() 方法通常是为了确保不会对原始特征的修改影响到拷贝后的特征
         # Stack the features and convert them to float arrays
@@ -1856,17 +1927,17 @@ class BaseBondFeaturizer(object):
             for feat_name in processed_features:
                 feats = processed_features[feat_name]
                 feats = torch.cat([feats, torch.zeros(feats.shape[0], 1)], dim=1)
+#   torch.zeros(feats.shape[0], 1)：创建一个形状为 (feats.shape[0], 1) 的张量，其中所有元素都是 0。也就是，为每个样本添加一个新的零特征。
+#torch.cat([...], dim=1)：将两个张量沿着第 1 维（即列维度）拼接在一起。feats 是一个已有的张量，torch.zeros(...) 是新创建的张量，拼接后新的张量将比原来 feats 多一列。 （水平拼接）
     #torch.cat 是 PyTorch 中的一个函数，用于将多个张量沿指定维度连接在一起。
     #[feats, torch.zeros(feats.shape[0], 1)]：
 
-#这里创建了一个列表，包含两个张量：
-#feats：原始的张量。
-#torch.zeros(feats.shape[0], 1)：生成一个全为零的新张量，其形状为 (feats.shape[0], 1)。这表示它有与 feats 相同的行数，但只有一列。
-#dim=1 表示要在第二个维度（列的方向）进行连接。这意味着新生成的零列将被添加到 feats 的右侧。
                 self_loop_feats = torch.zeros(num_atoms, feats.shape[1])
                 self_loop_feats[:, -1] = 1
-                feats = torch.cat([feats, self_loop_feats], dim=0)
+                feats = torch.cat([feats, self_loop_feats], dim=0)  #垂直拼接？？）自环相当于是一个键，独立占据一行。  可是为什么要设置最后1列是自环尼？？？？不该是对应这个原子吗，不然不管什么原子都是最后一列，这还有重要信息吗？？？
                 processed_features[feat_name] = feats
+#self._self_loop 是一个标志，可能用于指示是否要添加自循环特征。
+#num_bonds == 0 表示当前分子没有任何化学键。这个条件下，代码将生成一个“虚拟”分子来初始化特征。
 
         if self._self_loop and num_bonds == 0:
             num_atoms = mol.GetNumAtoms()
@@ -1893,7 +1964,7 @@ class CanonicalBondFeaturizer(BaseBondFeaturizer):
       ``STEREOCIS``, ``STEREOTRANS``.
 
     **We assume the resulting DGLGraph will be created with :func:`smiles_to_bigraph` without
-    self loops.**
+    self loops.**  这里默认是没有自环的
 
     Parameters
     ----------
@@ -2041,13 +2112,17 @@ class WeaveEdgeFeaturizer(object):
             N is the number of atom pairs and M is the feature size.
         """
         # Part 1 based on number of bonds between each pair of atoms
+        #GetDistanceMatrix(mol) 是 RDKit 提供的一个函数，用来计算分子中所有原子之间的距离矩阵。返回的结果是一个 NumPy 数组，表示每对原子之间的距离。
+        #维度是（N，N）
         distance_matrix = torch.from_numpy(Chem.GetDistanceMatrix(mol))
         # Change shape from (V, V, 1) to (V^2, 1)
         distance_matrix = distance_matrix.float().reshape(-1, 1)
         # Elementwise compare if distance is bigger than 0, 1, ..., max_distance - 1
         distance_indicators = (distance_matrix >
                                torch.arange(0, self._max_distance).float()).float()
-
+#这段代码的目的是生成一个矩阵，指示原子对之间的距离是否超过给定的距离阈值。每个原子对的距离都与一系列距离阈值进行比较，结果生成一个指示矩阵，通常用于分子图的距离关系表示中
+#这里的 float() 是将 torch.arange(0, self._max_distance) 的数据类型转换为浮点型，以确保它和 distance_matrix 的元素类型一致（通常距离矩阵 distance_matrix 是浮点数类型）
+#二个 float() 是在比较操作后对布尔矩阵进行转换，将 True 转换为 1.0，False 转换为 0.0。
         # Part 2 for one hot encoding of bond type.
         num_atoms = mol.GetNumAtoms()
         bond_indicators = torch.zeros(num_atoms, num_atoms, len(self._bond_types))
@@ -2061,6 +2136,8 @@ class WeaveEdgeFeaturizer(object):
         bond_indicators = bond_indicators.reshape(-1, len(self._bond_types))
 
         # Part 3 for whether a pair of atoms belongs to a same ring.
+        #   sssr = Chem.GetSymmSSSR(mol)
+      #每对在同一个环中的原子创建一个指示器矩阵（ring_mate_indicators），该矩阵用 1 来标记属于同一个环的原子对，并将其展平为一个列向量。
         sssr = Chem.GetSymmSSSR(mol)
         ring_mate_indicators = torch.zeros(num_atoms, num_atoms, 1)
         for ring in sssr:
@@ -2072,7 +2149,12 @@ class WeaveEdgeFeaturizer(object):
 
         return {self._edge_data_field: torch.cat([distance_indicators,
                                                   bond_indicators,
-                                                  ring_mate_indicators], dim=1)}
+                                                  ring_mate_indicators], dim=1)} #垂直堆叠
+
+#假设当前环 ring = [0, 2, 3, 4]，那么 torch.tensor(ring) 就是 [0, 2, 3, 4]，并且：
+#如果 i = 0，那么 ring[i] = 0，表示原子 0。
+#通过 ring_mate_indicators[0, torch.tensor([0, 2, 3, 4])] = 1，就会将原子 0 与环中的所有原子（0、2、3、4）之间的关系标记为 1。
+
 
 class PretrainBondFeaturizer(object):
     """BondFeaturizer in Strategies for Pre-training Graph Neural Networks.
@@ -2306,6 +2388,7 @@ class PAGTNEdgeFeaturizer(object):
         # ring sizes of 5 and 6 are used. True & False indicate if it's aromatic or not.
         self.RING_TYPES = [(5, False), (5, True), (6, False), (6, True)]
         self.ordered_pair = lambda a, b: (a, b) if a < b else (b, a)
+        #定义了一个匿名函数（lambda 函数），用于生成有序的原子对。具体来说，它确保无论输入的两个参数 a 和 b 的顺序如何，返回的元组总是按升序排列（即小的数值在前，大的数值在后）。
         self.bond_featurizer = ConcatFeaturizer([bond_type_one_hot,
                                                  bond_is_conjugated,
                                                  bond_is_in_ring])
